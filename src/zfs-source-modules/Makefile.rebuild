@@ -1,0 +1,126 @@
+#
+# $Id: Makefile.rebuild,v 1.5 2012/11/27 00:49:42 phil Exp $
+#
+# @Copyright@
+# 
+# 				Rocks(r)
+# 		         www.rocksclusters.org
+# 		         version 5.6 (Emerald Boa)
+# 		         version 6.1 (Emerald Boa)
+# 
+# Copyright (c) 2000 - 2013 The Regents of the University of California.
+# All rights reserved.	
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+# 
+# 1. Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice unmodified and in its entirety, this list of conditions and the
+# following disclaimer in the documentation and/or other materials provided 
+# with the distribution.
+# 
+# 3. All advertising and press materials, printed or electronic, mentioning
+# features or use of this software must display the following acknowledgement: 
+# 
+# 	"This product includes software developed by the Rocks(r)
+# 	Cluster Group at the San Diego Supercomputer Center at the
+# 	University of California, San Diego and its contributors."
+# 
+# 4. Except as permitted for the purposes of acknowledgment in paragraph 3,
+# neither the name or logo of this software nor the names of its
+# authors may be used to endorse or promote products derived from this
+# software without specific prior written permission.  The name of the
+# software includes the following terms, and any derivatives thereof:
+# "Rocks", "Rocks Clusters", and "Avalanche Installer".  For licensing of 
+# the associated name, interested parties should contact Technology 
+# Transfer & Intellectual Property Services, University of California, 
+# San Diego, 9500 Gilman Drive, Mail Code 0910, La Jolla, CA 92093-0910, 
+# Ph: (858) 534-5815, FAX: (858) 534-7345, E-MAIL:invent@ucsd.edu
+# 
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS''
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# 
+# @Copyright@
+#
+#
+# $Log: Makefile.rebuild,v $
+# Revision 1.5  2012/11/27 00:49:42  phil
+# Copyright Storm for Emerald Boa
+#
+# Revision 1.4  2012/10/04 21:50:52  phil
+# Update to rc11
+#
+# Revision 1.3  2012/07/03 02:19:32  phil
+# Update to rc9, add a section on updating an already-installed system.
+#
+# Revision 1.2  2012/06/01 23:06:50  phil
+# place the built rpms under /opt/zfs
+#
+# Revision 1.1  2012/05/13 19:25:20  phil
+# Updating method for building, updating of modules when you have updated the kernel,
+# documentation
+#
+
+
+SHELL = /bin/bash
+UNAME = /bin/uname
+TR = /usr/bin/tr
+ARCH = $(shell $(UNAME) -p)
+KERNEL_VERSION =$(shell $(UNAME) -r)
+KERNEL = $(shell $(UNAME) -r | $(TR) '-' '_')
+ZFS_HOME = /opt/zfs
+TOPDIR = $(ZFS_HOME)/rpmbuild
+BUILDROOT = $(TOPDIR)/BUILDROOT
+RPMHOME = $(TOPDIR)/RPMS/$(ARCH)
+
+SPL-RELEASE = 0.6.2
+SPL-SRPM =  $(wildcard  spl-kmod-$(SPL-RELEASE)-*.src.rpm)
+SPL-MODULE = /lib/modules/$(KERNEL_VERSION)/extra/spl/spl/spl.ko
+
+
+ZFS-RELEASE = 0.6.2
+ZFS-SRPM =  $(wildcard  zfs-kmod-$(ZFS-RELEASE)-*.src.rpm)
+ZFS-MODULE = /lib/modules/$(KERNEL_VERSION)/extra/zfs/zfs/zfs.ko
+
+
+rebuild: DIRS $(SPL-MODULE) $(ZFS-MODULE)
+
+force: clean rebuild
+
+DIRS:
+	if [ ! -d $(BUILDROOT) ]; then \
+		mkdir -p $(BUILDROOT); \
+	fi
+$(SPL-MODULE):
+	echo "=======  Rebuilding: $(SPL-SRPM)"
+	rpmbuild --rebuild --define "_topdir $(TOPDIR)" --define "kernels $(KERNEL_VERSION)" $(SPL-SRPM) &> $(SPL-SRPM).build.out
+	# need to force install RPM so that zfs-module will build
+	rpm -ivh --force $(RPMHOME)/kmod-spl*.rpm
+	
+$(ZFS-MODULE):
+	echo "=======  Rebuilding: $(ZFS-SRPM)"
+	rpmbuild --rebuild --define "_topdir $(TOPDIR)" --define "kernels $(KERNEL_VERSION)" $(ZFS-SRPM) &> $(ZFS-SRPM).build.out
+	# need to force install RPM so that zfs-module will build
+	rpm -ivh --force $(RPMHOME)/kmod-zfs*.rpm 
+	
+
+files:
+	echo $(SPL-MODULE) $(ZFS-MODULE)
+	ls -l $(SPL-MODULE) $(ZFS-MODULE)
+
+clean: 
+	if [ -f $(SPL-MODULE) ]; then /bin/rm $(SPL-MODULE); fi
+	if [ -f $(ZFS-MODULE) ]; then /bin/rm $(ZFS-MODULE); fi
