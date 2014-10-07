@@ -1,4 +1,4 @@
-ROLLNAME	= zfs-linux
+ROLLNAME	= zfs-linux-0633
 RC		= rc
 RELEASE		= 1
 VERSION		= 0.6.3
